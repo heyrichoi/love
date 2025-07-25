@@ -1,0 +1,2371 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프래빗 연애 시뮬레이션</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 기본 스타일 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 400px;
+            height: 100vh;
+            max-height: 800px;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+            border-radius: 0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        @media (min-width: 401px) {
+            .game-container {
+                border-radius: 20px;
+                height: 800px;
+            }
+        }
+
+        .game-screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease-in-out;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+        }
+
+        /* 캐릭터 이미지 크기 및 위치 조정 */
+        .character-image {
+            position: absolute;
+            bottom: 5vh; /* 캐릭터를 더 위로 올리고 말풍선 아래에 위치하도록 조정 */
+            left: 50%; /* 중앙 정렬을 위해 */
+            transform: translateX(-50%); /* 정확한 중앙 정렬 */
+            height: 70vh; /* 캐릭터 크기 조정 */
+            max-height: 600px; /* 최대 높이 설정 */
+            object-fit: contain;
+            transition: all 0.3s ease;
+            z-index: 2; /* UI 레이어보다 아래에 위치 */
+        }
+
+        .ui-layer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10; /* 캐릭터 이미지보다 위에 위치 */
+        }
+
+        /* 스탯 패널 디자인 개선 */
+        .stats-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.85); /* 배경 더 진하게 */
+            padding: 10px 15px; /* 패딩 조정 */
+            border-radius: 12px; /* 모서리 더 둥글게 */
+            color: white;
+            z-index: 5;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2열 유지 */
+            gap: 10px; /* 간격 넓힘 */
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+
+        .stat-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* 간격 넓힘 */
+            background: rgba(255,255,255,0.1); /* 각 바 배경 추가 */
+            padding: 6px 10px;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            min-width: 40px; /* 레이블 너비 조정 */
+            font-size: 13px; /* 폰트 크기 조정 */
+            font-weight: 600; /* 폰트 두께 */
+            color: #f0f0f0; /* 레이블 색상 */
+        }
+
+        .stat-progress {
+            flex: 1;
+            height: 8px; /* 진행 바 두께 */
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px; /* 진행 바 모서리 */
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.4); /* 테두리 추가 */
+        }
+
+        .stat-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* 내부 그림자 */
+        }
+
+        /* 각 스탯 바 색상 */
+        .eunji-stat { background-color: #ff6b9d; } /* 핑크 */
+        .soyeon-stat { background-color: #a452b8; } /* 보라 */
+        .jieun-stat { background-color: #3498db; } /* 파랑 */
+        .work-stat { background-color: #f39c12; } /* 주황 */
+
+        /* 반짝이는 이펙트 키프레임 */
+        @keyframes sparkle-glow {
+            0% { box-shadow: 0 0 5px rgba(255,255,255,0.7), inset 0 1px 3px rgba(0,0,0,0.2); }
+            50% { box-shadow: 0 0 15px rgba(255,255,255,1), inset 0 1px 3px rgba(0,0,0,0.2); }
+            100% { box-shadow: 0 0 5px rgba(255,255,255,0.7), inset 0 1px 3px rgba(0,0,0,0.2); }
+        }
+
+        /* 반짝이는 이펙트 클래스 */
+        .stat-fill.sparkle {
+            animation: sparkle-glow 0.8s ease-out; /* 짧고 눈에 띄는 애니메이션 */
+        }
+
+        /* 말풍선 디자인 개선 */
+        .dialogue-container {
+            background: rgba(255,255,255,0.95); /* 단일 배경색으로 변경 */
+            margin: 10px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            position: relative; /* 화살표를 위한 상대 위치 */
+            transition: background 0.3s ease; /* 투명도 변화 애니메이션 추가 */
+        }
+
+        /* 선택지가 나올 때 말풍선 투명도 조절 */
+        .dialogue-container.dialogue-choices-active {
+            background: rgba(255,255,255,0.75); /* 더 투명하게 */
+        }
+
+        .main-dialogue-box {
+            padding: 20px;
+            min-height: 100px;
+            position: relative;
+            background: transparent; /* 배경을 투명하게 */
+        }
+
+        /* 내레이션 디자인 변경 */
+        .main-dialogue-box.narration-style {
+            background: rgba(0,0,0,0.7); /* 어두운 배경 */
+            color: white; /* 흰색 텍스트 */
+            border-left: none; /* 기존 border 제거 */
+            border-radius: 15px; /* 둥근 모서리 유지 */
+            text-align: center; /* 중앙 정렬 */
+            font-style: italic;
+            padding: 25px 20px; /* 패딩 조정 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .main-dialogue-box.narration-style .speaker-name {
+            color: #ccc; /* 내레이션 화자 이름 색상 변경 */
+            font-style: italic;
+            margin-bottom: 5px;
+        }
+
+        .main-dialogue-box.narration-style .dialogue-text {
+            color: #eee; /* 내레이션 텍스트 색상 변경 */
+        }
+
+        /* 캐릭터 대화 스타일 (기존 유지, 배경만 명확히) */
+        .main-dialogue-box.character-style {
+            background: transparent; /* dialogue-container가 배경을 담당 */
+        }
+
+        .speaker-name {
+            font-weight: 700;
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .speaker-name.narration {
+            color: #666;
+            font-style: italic;
+        }
+
+        .dialogue-text {
+            font-size: 16px;
+            line-height: 1.7;
+            color: #444;
+            word-break: keep-all;
+        }
+
+        .choices-container {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .choice-button {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            margin: 8px 0;
+            background: linear-gradient(145deg, #fff, #f0f0f0);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-family: 'Noto Sans KR', sans-serif;
+            touch-action: manipulation;
+        }
+
+        .choice-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            background: linear-gradient(145deg, #f8f8f8, #e8e8e8);
+            border-color: #4a90e2;
+        }
+
+        .choice-button:active {
+            transform: translateY(0);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-8px);
+            }
+            60% {
+                transform: translateY(-4px);
+            }
+        }
+
+        /* 타이틀 스크린 개선 */
+        .title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; /* 로고를 하단에 배치 */
+            align-items: center;
+            color: white;
+            z-index: 100;
+            cursor: pointer; /* 클릭 가능한 영역임을 표시 */
+            padding-bottom: 50px; /* 로고 하단 여백 */
+        }
+
+        .title-screen .game-title,
+        .title-screen .game-subtitle {
+            display: none; /* 타이틀 화면에서 텍스트 제목 숨김 */
+        }
+
+        .game-logo {
+            width: 80%; /* 로고 크기 조정 */
+            max-width: 250px;
+            height: auto;
+            object-fit: contain;
+            animation: float 3s ease-in-out infinite; /* 둥둥 떠다니는 효과 */
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5)); /* 그림자 추가 */
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .ending-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 40px;
+            z-index: 100;
+            /* 엔딩 화면 이펙트 추가 */
+            animation: ending-glow 2s infinite alternate; /* 새로운 애니메이션 적용 */
+        }
+
+        /* 새로운 엔딩 화면 이펙트 키프레임 */
+        @keyframes ending-glow {
+            0% { box-shadow: 0 0 10px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3); }
+            100% { box-shadow: 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.5); }
+        }
+
+
+        .ending-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .ending-text {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            max-width: 90%;
+        }
+
+        .restart-button {
+            padding: 14px 30px;
+            background: linear-gradient(145deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+            touch-action: manipulation;
+        }
+
+        .restart-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        .restart-button:active {
+            transform: translateY(0);
+        }
+
+        /* 전체화면 일러스트 */
+        .fullscreen-illust {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .fullscreen-illust img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .illust-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 40px 20px 20px;
+        }
+
+        .illust-dialogue {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .illust-dialogue .speaker-name {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .illust-dialogue .dialogue-text {
+            color: #ffffff;
+            font-size: 16px;
+            line-height: 1.6;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .illust-choices {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .illust-choice-button {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 14px 20px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+        }
+
+        .illust-choice-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #ff6b9d;
+            transform: translateY(-2px);
+        }
+
+        /* 페이드 인 효과 */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 하트 이펙트 */
+        .heart-effects {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* 하트가 클릭을 방해하지 않도록 */
+            overflow: hidden;
+            z-index: 20;
+        }
+
+        .heart {
+            position: absolute;
+            background-color: #ff6b9d; /* 핑크색 하트 */
+            width: 15px;
+            height: 15px;
+            transform: rotate(-45deg);
+            animation: floatUp 2s forwards ease-out;
+            opacity: 0;
+            border-radius: 50% 50% 0 0;
+        }
+
+        .heart::before,
+        .heart::after {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: #ff6b9d;
+            border-radius: 50%;
+        }
+
+        .heart::before {
+            top: -7.5px;
+            left: 0;
+        }
+
+        .heart::after {
+            top: 0;
+            left: 7.5px;
+        }
+
+        @keyframes floatUp {
+            0% {
+                opacity: 0;
+                transform: translateY(0) rotate(-45deg) scale(0.5);
+            }
+            20% {
+                opacity: 1;
+                transform: translateY(-20px) rotate(-45deg) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-150px) rotate(-45deg) scale(1.2);
+            }
+        }
+
+        /* 갤러리 화면 스타일 */
+        .gallery-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 배경색 변경 */
+            background: linear-gradient(135deg, #fefefe 0%, #ffe0f0 100%); /* 아주 연한 분홍색 */
+            display: none; /* 초기에는 숨김 */
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            color: #333; /* 텍스트 색상 조정 */
+            z-index: 101; /* 다른 UI보다 위에 */
+            padding: 20px;
+            overflow-y: auto; /* 스크롤 가능 */
+        }
+
+        .gallery-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #ff6b9d; /* Pink title */
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 90%;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .gallery-item {
+            background: rgba(255,255,255,0.8); /* Whiter background for items */
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(255,107,157,0.1); /* Pink shadow */
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            min-height: 150px; /* 최소 높이 설정 */
+            border: 1px solid #ffb3d9; /* Pink border */
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 90px; /* 이미지 높이 고정 */
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            border: 2px solid #ff99bb; /* Pink border for images */
+        }
+
+        .gallery-item.uncollected {
+            background: #e0e0e0; /* Lighter grey for uncollected */
+            color: #999;
+            font-size: 30px;
+            font-weight: 700;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .gallery-item.uncollected::after {
+            content: '?';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #bbb; /* Lighter question mark */
+        }
+        .gallery-item.uncollected .item-name {
+            font-size: 14px;
+            color: #a0a0a0; /* 미수집 이름 색상 조정 */
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .gallery-item .item-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333; /* 수집된 이름 색상 조정 */
+            word-break: keep-all;
+        }
+
+        .gallery-close-button {
+            padding: 12px 25px;
+            background: linear-gradient(145deg, #ff6b9d, #e05a8f); /* 연분홍색 그라데이션 */
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+            touch-action: manipulation;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2); /* 그림자 추가 */
+        }
+
+        .gallery-close-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Gallery Image Overlay */
+        .gallery-image-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 102; /* Higher than gallery screen */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .gallery-image-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .gallery-image-overlay img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            object-fit: contain;
+        }
+
+        .overlay-close-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .overlay-close-button:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Collection Progress Bar */
+        .collection-progress {
+            width: 90%;
+            max-width: 350px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff99bb, #ff6b9d); /* Pink gradient */
+            border-radius: 10px;
+            width: 0%; /* Controlled by JS */
+            transition: width 0.5s ease-out;
+        }
+
+        .progress-percentage {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Adjust main title screen button for consistency */
+        #showGalleryButton {
+            background: linear-gradient(145deg, #ff99bb, #ff77a0) !important; /* Force pink */
+            color: white !important;
+            border-radius: 15px !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        }
+        #showGalleryButton:hover {
+            background: linear-gradient(145deg, #ff77a0, #ff5c8c) !important;
+            box-shadow: 0 8px 20px rgba(255,107,157,0.3) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 배경 음악 플레이어 -->
+        <audio id="background-music" src="https://github.com/heyrichoi/love/raw/refs/heads/main/%5B%EB%AC%B4%EB%A3%8CBGM%5D%20%EB%93%A4%EC%9C%BC%EB%A9%B4%20%ED%8E%B8%EC%95%88%ED%95%B4%EC%A7%80%EB%8A%94%20%ED%96%89%EB%B3%B5%ED%95%9C%20%EC%9D%8C%EC%95%85%20%20%EA%B7%80%EC%97%BD%EA%B3%A0%20%EC%9E%94%EC%9E%94%ED%95%9C%20%EB%A9%9C%EB%A1%9C%EB%94%94.mp3" loop volume="0.3" autoplay></audio>
+
+        <!-- 효과음 플레이어: 선택지 클릭 시 -->
+        <audio id="choice-sound" src="https://github.com/heyrichoi/love/raw/refs/heads/main/Storytelling%20Cartoon%20PopVocal%2003.mp3" preload="auto" volume="0.5"></audio>
+        <!-- 효과음 플레이어: 호감도 상승 시 -->
+        <audio id="affection-sound" src="https://github.com/heyrichoi/love/raw/refs/heads/main/Ascending%207.mp3" preload="auto" volume="0.5"></audio>
+
+        <!-- 타이틀 스크린 -->
+        <div class="title-screen" id="titleScreen">
+            <h1 class="game-title">프래빗</h1>
+            <p class="game-subtitle">연애 시뮬레이션</p>
+            <!-- 게임 로고는 JS에서 설정 -->
+            <img id="gameLogo" class="game-logo" src="" alt="게임 로고">
+            <!-- 수집한 에피소드 버튼 추가 -->
+            <button class="restart-button" id="showGalleryButton" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 150px; padding: 10px 15px; font-size: 14px; background: linear-gradient(145deg, #ff99bb, #ff77a0); color: white; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; transition: all 0.3s ease; z-index: 101;">수집한 에피소드</button>
+        </div>
+
+        <!-- 게임 스크린 -->
+        <div class="game-screen" id="gameScreen">
+            <div class="overlay"></div>
+            
+            <!-- 스탯 패널 -->
+            <div class="stats-panel">
+                <div class="stat-bar">
+                    <span class="stat-label">은지</span>
+                    <div class="stat-progress">
+                        <div class="stat-fill eunji-stat" id="eunjiBar" style="width: 0%"></div>
+                    </div>
+                    <span id="eunjiValue">0</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">소연</span>
+                    <div class="stat-progress">
+                        <div class="stat-fill soyeon-stat" id="soyeonBar" style="width: 0%"></div>
+                    </div>
+                    <span id="soyeonValue">0</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">지은</span>
+                    <div class="stat-progress">
+                        <div class="stat-fill jieun-stat" id="jieunBar" style="width: 0%"></div>
+                    </div>
+                    <span id="jieunValue">0</span>
+                </div>
+                <div class="stat-bar">
+                    <span class="stat-label">업무</span>
+                    <div class="stat-progress">
+                        <div class="stat-fill work-stat" id="workBar" style="width: 50%"></div>
+                    </div>
+                    <span id="workValue">50</span>
+                </div>
+            </div>
+            
+            <!-- 캐릭터 이미지 -->
+            <img class="character-image" id="characterImage" src="" alt="캐릭터" style="display: none;">
+            
+            <!-- UI 레이어 -->
+            <div class="ui-layer">
+                <div class="dialogue-container" id="dialogueContainer">
+                    <div class="main-dialogue-box" id="dialogueBox">
+                        <div class="speaker-name" id="speakerName"></div>
+                        <div class="dialogue-text" id="dialogueText"></div>
+                    </div>
+                    <div class="choices-container" id="choicesContainer" style="display: none;">
+                        <!-- 선택지들이 여기에 동적으로 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하트 이펙트 컨테이너 -->
+            <div class="heart-effects" id="heartEffects"></div>
+
+            <!-- 전체화면 일러스트 -->
+            <div class="fullscreen-illust" id="fullscreenIllust" style="display: none;">
+                <img id="fullscreenImage" src="" alt="특별 일러스트">
+                <div class="illust-overlay">
+                    <div class="illust-dialogue" id="illustDialogue"></div>
+                    <div class="illust-choices" id="illustChoices"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 엔딩 스크린 -->
+        <div class="ending-screen" id="endingScreen">
+            <h2 class="ending-title" id="endingTitle"></h2>
+            <p class="ending-text" id="endingText"></p>
+            <button class="restart-button" onclick="restartGame()">다시 시작</button>
+        </div>
+
+        <!-- 갤러리 화면 -->
+        <div class="gallery-screen" id="galleryScreen">
+            <h2 class="gallery-title">수집한 에피소드</h2>
+            <div class="collection-progress">
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+                <span id="progressPercentage" class="progress-percentage">0%</span>
+            </div>
+            <div class="gallery-grid" id="galleryGrid">
+                <!-- 갤러리 아이템들이 여기에 동적으로 추가됩니다 -->
+            </div>
+            <button class="gallery-close-button" onclick="hideGalleryScreen()">닫기</button>
+        </div>
+
+        <!-- Gallery Image Overlay -->
+        <div class="gallery-image-overlay" id="galleryImageOverlay">
+            <img id="overlayImage" src="" alt="Collected Image">
+            <button class="overlay-close-button" onclick="hideImageOverlay()">X</button>
+        </div>
+    </div>
+
+    <script>
+        // 이미지 URLs
+        const IMAGE_URLS = {
+            // 게임 시스템
+            GAME_LOGO: "https://i.imgur.com/fc7ibbV.png", // 로고 링크 수정
+            OPENING_ILLUST: "https://i.imgur.com/XFMOADt.png", // 오프닝 일러스트 링크 수정
+            
+            // 캐릭터 기본 이미지
+            EUNJI_BASE: "https://i.imgur.com/jZBBBQo.png", // 유나 -> 은지
+            HEROINE2_BASE: "https://i.imgur.com/YA3aovP.png", // 소연
+            HEROINE3_BASE: "https://i.imgur.com/W3sH6z0.png", // 지은
+            
+            // 배경 이미지
+            OFFICE_DAY: "https://i.imgur.com/a5M40YD.jpeg",
+            OFFICE_NIGHT: "https://i.imgur.com/HmArX3W.jpeg",
+            STREET_DAY: "https://i.imgur.com/iuQmmdY.jpeg",
+            STREET_NIGHT: "https://i.imgur.com/SrEarCA.jpeg",
+            ELEVATOR: "https://i.imgur.com/X8x3iXj.jpeg",
+            RESTAURANT: "https://i.imgur.com/FuL8A55.jpeg",
+            PARK: "https://i.imgur.com/NfmDZwK.jpeg", // 공원 배경 이미지 수정
+            CAFE: "https://i.imgur.com/lbvy9NW.jpeg", // 카페 배경 이미지 수정
+            
+            // 은지 특별 이벤트 일러스트
+            EUNJI_INTRO: "https://i.imgur.com/54MMT3W.png",
+            EUNJI_MEMO: "https://imgur.com/RgiRuk5", // 유나 쪽지 이미지 교체
+            EUNJI_COFFEE: "https://i.imgur.com/BhLskDz.png", // 유나 커피 에피소드 이미지 수정
+            EUNJI_CONFLICT: "https://imgur.com/ahVMEkk", // 유나 갈등 이미지 교체
+            EUNJI_CONFESSION: "https://i.imgur.com/McV81dI.png",
+            EUNJI_DAILY: "https://i.imgur.com/ECujpVg.png",
+            EUNJI_MARRIAGE: "https://i.imgur.com/o7XthKq.png",
+            
+            // 소연 특별 이벤트 일러스트
+            HEROINE2_HELP: "https://i.imgur.com/KeHnhyt.png",
+            HEROINE2_UMBRELLA: "https://i.imgur.com/GrDARor.png", 
+            HEROINE2_GARDEN: "https://i.imgur.com/75nhFdx.png",
+            HEROINE2_CONFLICT: "https://i.imgur.com/vheN78m.png", // 소연 갈등 일러스트 수정
+            HEROINE2_CONFESSION: "https://i.imgur.com/ji6rwsk.png",
+            HEROINE2_EXPERIENCE: "https://i.imgur.com/WTpQ15M.png",
+            HEROINE2_MARRIAGE: "https://i.imgur.com/cFZoe1W.png",
+            
+            // 지은 특별 이벤트 일러스트
+            HEROINE3_INTRO: "https://i.imgur.com/ZClZ84l.png",
+            HEROINE3_COFFEE: "https://i.imgur.com/89tgstl.png", // 지은 커피 이벤트 이미지 교체
+            HEROINE3_PRAISE: "https://i.imgur.com/BLRYxbq.png", // 지은 의견 지지 이미지 수정
+            HEROINE3_UMBRELLA: "https://i.imgur.com/Op4maCa.png",
+            HEROINE3_CONFLICT: "https://imgur.com/icKWWlF", // 지은 프로젝트 갈등 이미지 교체
+            HEROINE3_DAILY: "https://i.imgur.com/m1r4PMS.png", 
+            HEROINE3_MARRIAGE: "https://i.imgur.com/oFXcEvA.png",
+            
+            // 히든 루트 일러스트
+            MARRIAGE_PROPOSAL: "https://i.imgur.com/IFKNrQo.png",
+            MARRIAGE_JIEUN_INTEREST: "https://i.imgur.com/THoQvO9.png",
+            MARRIAGE_DRESS: "https://i.imgur.com/26WYtLS.png",
+            
+            // 엔딩 일러스트
+            EUNJI_HAPPY: "https://i.imgur.com/B3Xmf3s.png", // 유나 해피 엔딩 -> 은지 해피 엔딩
+            SOYEON_HAPPY: "https://i.imgur.com/IT3hF1j.png", // 소연 해피 엔딩 일러스트 수정
+            JIEUN_HAPPY: "https://i.imgur.com/umYYPuf.png",
+            EUNJI_BAD: "https://i.imgur.com/tphE9SC.png", // 유나 배드 엔딩 -> 은지 배드 엔딩
+            SOYEON_BAD: "https://i.imgur.com/YW663nd.png",
+            JIEUN_BAD: "https://i.imgur.com/dt6m5bk.png",
+            NTR_ENDING: "https://i.imgur.com/jKKRzxs.png", // 기존 NTR 엔딩 이미지 활용 (에피소드 중)
+            EUNJI_NTR_FINAL_ENDING: "https://imgur.com/h9pveL0", // 유나 NTR 최종 엔딩 이미지 추가 -> 은지 NTR 최종 엔딩
+            FAILURE_ENDING: "https://i.imgur.com/ay6Q60Q.png"
+        };
+
+        // 게임 상태
+        let gameState = {
+            currentScene: 'prologue',
+            heroine1: 0,  // 은지 (이전 유나)
+            heroine2: 0,  // 소연  
+            heroine3: 0,  // 지은
+            work: 50,     // 업무 평가
+            eunjiConflictBadChoice: false, // 유나 -> 은지
+            soyeonConflictBadChoice: false,
+            jieunConflictBadChoice: false,
+            currentTextIndex: 0,
+            isTyping: false,
+            // 수집된 일러스트 상태를 저장할 객체 (로컬 스토리지에서 로드 또는 초기화)
+            collectedIllusts: {}
+        };
+
+        // 갤러리에 표시될 일러스트 목록과 이름 (IMAGE_URLS의 키와 매핑)
+        const GALLERY_ILLUST_MAP = {
+            "EUNJI_INTRO": "은지 첫 만남",
+            "HEROINE3_INTRO": "지은 첫 만남",
+            "HEROINE2_HELP": "소연 업무 도움",
+            "EUNJI_MEMO": "은지 쪽지",
+            "HEROINE2_UMBRELLA": "소연 우산",
+            "EUNJI_COFFEE": "은지 커피 데이트",
+            "HEROINE3_PRAISE": "지은 공원 산책",
+            "EUNJI_CONFLICT": "은지 갈등",
+            "HEROINE2_CONFLICT": "소연 갈등",
+            "HEROINE3_CONFLICT": "지은 갈등",
+            "EUNJI_CONFESSION": "은지 고백",
+            "HEROINE2_CONFESSION": "소연 고백",
+            "HEROINE3_MARRIAGE": "지은 고백 (결혼)", 
+            "MARRIAGE_PROPOSAL": "히든 엔딩 (하렘)",
+            "EUNJI_HAPPY": "은지 해피 엔딩",
+            "SOYEON_HAPPY": "소연 해피 엔딩",
+            "JIEUN_HAPPY": "지은 해피 엔딩",
+            "EUNJI_BAD": "은지 배드 엔딩",
+            "SOYEON_BAD": "소연 배드 엔딩",
+            "JIEUN_BAD": "지은 배드 엔딩",
+            "NTR_ENDING": "은지 NTR 에피소드", // 에피소드 진행 중 일러스트
+            "EUNJI_NTR_FINAL_ENDING": "은지 NTR 엔딩", // 최종 엔딩 화면 일러스트
+            "FAILURE_ENDING": "실패 엔딩"
+        };
+
+
+        // DOM 요소 가져오기
+        const titleScreen = document.getElementById('titleScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const endingScreen = document.getElementById('endingScreen');
+        const endingTitle = document.getElementById('endingTitle');
+        const endingText = document.getElementById('endingText');
+        const galleryScreen = document.getElementById('galleryScreen'); // 갤러리 화면 요소
+        const galleryGrid = document.getElementById('galleryGrid');     // 갤러리 그리드 요소
+        const showGalleryButton = document.getElementById('showGalleryButton'); // 갤러리 버튼 요소
+
+        const dialogueContainer = document.getElementById('dialogueContainer'); // dialogueContainer ID 추가
+        const dialogueBox = document.getElementById('dialogueBox');
+        const speakerName = document.getElementById('speakerName');
+        const dialogueText = document.getElementById('dialogueText');
+        const choicesContainer = document.getElementById('choicesContainer');
+        const characterImage = document.getElementById('characterImage');
+        const gameBackground = document.getElementById('gameScreen');
+        const gameLogo = document.getElementById('gameLogo'); // 게임 로고 이미지 요소
+
+        const eunjiBar = document.getElementById('eunjiBar'); // 유나 -> 은지
+        const eunjiValue = document.getElementById('eunjiValue'); // 유나 -> 은지
+        const soyeonBar = document.getElementById('soyeonBar');
+        const soyeonValue = document.getElementById('soyeonValue');
+        const jieunBar = document.getElementById('jieunBar');
+        const jieunValue = document.getElementById('jieunValue');
+        const workBar = document.getElementById('workBar');
+        const workValue = document.getElementById('workValue');
+
+        const fullscreenIllust = document.getElementById('fullscreenIllust');
+        const fullscreenImage = document.getElementById('fullscreenImage');
+        const illustDialogueDiv = document.getElementById('illustDialogue');
+        const illustChoicesDiv = document.getElementById('illustChoices');
+
+        const heartEffectsContainer = document.getElementById('heartEffects');
+        const backgroundMusic = document.getElementById('background-music'); // 배경 음악 요소
+        const choiceSound = document.getElementById('choice-sound'); // 선택지 클릭 효과음 요소
+        const affectionSound = document.getElementById('affection-sound'); // 호감도 상승 효과음 요소
+
+        // New DOM elements for overlay
+        const galleryImageOverlay = document.getElementById('galleryImageOverlay');
+        const overlayImage = document.getElementById('overlayImage');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const progressPercentage = document.getElementById('progressPercentage');
+
+        // 로컬 스토리지 키
+        const COLLECTED_ILLUSTS_KEY = 'praebit_collected_illusts';
+
+        // 게임 장면들 (확장된 버전)
+        const scenes = {
+            prologue: {
+                speaker: "주인공",
+                text: ["오늘부터 진짜 사회인이네. 잘 할 수 있을까?", "조금 긴장되지만, 새로운 시작이라니 설레기도 한다.", "어떤 사람들을 만나게 될까? 새로운 인연이 기다리고 있을지도..."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "intro_narration_1" }]
+            },
+            
+            intro_narration_1: {
+                speaker: "내레이션",
+                text: ["주인공은 대기업 마케팅팀으로 첫 출근을 한다.", "낯설고 긴장되는 공간 속, 익숙한 목소리가 들려온다.", "\"어라? 설마...\" 하는 생각이 머릿속을 스쳐 지나간다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "intro_eunji_dialogue" }] // 유나 -> 은지
+            },
+            
+            intro_eunji_dialogue: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["어머! 너 여기 지원했었어? 대박!", "나랑 같이 입사한 거, 진짜 신기하지 않아?", "어릴 때부터 꿈꿔왔던 게임 회사에서 같이 일하게 되다니...", "정말 운명인가 봐! 이렇게 다시 만날 줄 누가 알겠어?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [{ text: "다음", next: "eunji_intro_illust" }] // 유나 -> 은지
+            },
+
+            eunji_intro_illust: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["어릴 때 약속했잖아! 같이 꿈을 이루자고!", "이제 정말로 그 약속을 지킬 수 있게 됐네!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.EUNJI_INTRO, // 유나 -> 은지
+                illustKey: "EUNJI_INTRO", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "intro_soyeon_dialogue" }]
+            },
+            
+            intro_soyeon_dialogue: {
+                speaker: "소연",
+                text: ["신입사원이시군요. 저는 기획팀 소연입니다.", "앞으로 잘 부탁드려요.", "첫 출근부터 늦지 말고, 회사 분위기에 잘 적응해야 합니다.", "이 회사는 실력을 중요시하니까 열심히 하세요.", "당신의 활약을 기대할게요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [{ text: "다음", next: "intro_jieun_dialogue" }]
+            },
+            
+            intro_jieun_dialogue: {
+                speaker: "지은",  
+                text: ["어? 새로운 분이신가요? 저는 '크리에이트' 회사에서 온 지은이에요!", "오늘부터 프래빗과 협업 프로젝트를 진행하게 됐거든요.", "앞으로 자주 보게 될 거예요. 일도 많이 같이 해야 하고.", "...잘 부탁드려요. 열심히 하겠습니다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [{ text: "다음", next: "jieun_intro_illust" }]
+            },
+
+            jieun_intro_illust: {
+                speaker: "지은",
+                text: ["처음 뵙겠습니다. 앞으로 잘 부탁드려요.", "열심히... 열심히 하겠습니다!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE3_INTRO,
+                illustKey: "HEROINE3_INTRO", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "prologue_narration_2" }]
+            },
+            
+            prologue_narration_2: {
+                speaker: "내레이션",
+                text: ["새로운 사람들과 얽히는 관계, 그리고 눈코 뜰 새 없이 바쁘게 흘러가는 업무 속에서 미묘한 감정들이 싹트기 시작한다.", "지금은 그저 동료일 뿐이지만… 과연 이 관계가 단순한 직장 동료를 넘어 사랑으로 발전할 수 있을까?", "모든 선택은 당신의 몫이다.", "이제 진짜 이야기가 시작된다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "common_route_start" }]
+            },
+
+            // 공통 루트 시작 - 시간 경과 표현 추가
+            common_route_start: {
+                speaker: "내레이션",
+                text: ["첫 주가 지나고, 당신은 점차 회사 생활에 적응해가고 있다.", "매일 아침 7시에 일어나서 출근 준비를 하고, 8시 30분에 회사에 도착하는 것이 일상이 되었다.", "오늘도 평범한 월요일 아침이 시작되었다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "morning_greeting" }]
+            },
+
+            morning_greeting: {
+                speaker: "내레이션",
+                text: ["사무실에 들어서자 세 명의 동료들이 각자의 방식으로 인사를 건넨다.", "은지는 언제나처럼 밝은 미소로, 소연은 차분하게, 지은은 조금 쑥스러워하며...", "누구에게 먼저 인사를 할까?"], // 유나 -> 은지
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "morning_greeting_choices" }]
+            },
+
+            morning_greeting_choices: {
+                speaker: "내레이션",
+                text: ["은지는 밝게 손을 흔들고, 소연은 차분하게 고개를 끄덕이며, 지은은 살짝 미소를 보인다.", "첫인상이 중요하다고 하는데, 어떻게 행동할까?"], // 유나 -> 은지
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [
+                    { text: "은지에게 밝게 인사한다", effects: { heroine1: 11 }, next: "time_pass_morning" }, // 유나 -> 은지
+                    { text: "소연에게 정중하게 인사한다", effects: { heroine2: 11 }, next: "time_pass_morning" },
+                    { text: "지은에게 가볍게 인사한다", effects: { heroine3: 11 }, next: "time_pass_morning" },
+                    { text: "세 명 모두에게 따뜻하게 인사한다", effects: { heroine1: 6, heroine2: 6, heroine3: 6 }, next: "time_pass_morning" }
+                ]
+            },
+
+            time_pass_morning: {
+                speaker: "내레이션",
+                text: ["아침 업무가 시작되고, 시간은 빠르게 흘러간다.", "어느새 점심시간이 다가오고 있다.", "커피 한 잔이라도 마시러 가야겠다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "coffee_machine_event" }]
+            },
+
+            coffee_machine_event: {
+                speaker: "내레이션",  
+                text: ["점심시간 직전, 커피를 마시러 자판기 앞으로 향했다.", "그곳에서 우연히 만나게 된 사람은...", "역시 같은 생각을 하는 사람이 있었나 보다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "coffee_encounter" }]
+            },
+
+            coffee_encounter: {
+                speaker: "은지", // 유나 -> 은지
+                text: ["또 아메리카노야? 피곤해 보이는데 괜찮아?", "내가 라떼 한 잔 사줄까? 달콤한 게 기운 나거든!", "아니면 같이 카페 갈까? 여기 커피는 좀... 그렇잖아.", "어때? 내 추천 메뉴도 알려줄게!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "고마워, 라떼 부탁해", effects: { heroine1: 12 }, next: "time_pass_afternoon" },
+                    { text: "괜찮아, 아메리카노가 좋아", effects: { heroine1: 5 }, next: "time_pass_afternoon" },
+                    { text: "같이 마실까? 내가 살게", effects: { heroine1: 15, heroine2: 5, heroine3: 5 }, next: "time_pass_afternoon" }
+                ]
+            },
+
+            time_pass_afternoon: {
+                speaker: "내레이션",
+                text: ["점심시간이 끝나고 오후 업무가 시작되었다.", "새로운 환경에 적응하려고 노력하지만 실수는 피할 수 없는 것 같다.", "오후 3시쯤, 급한 업무를 처리하던 중..."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "work_mistake_event" }]
+            },
+
+            work_mistake_event: {
+                speaker: "내레이션",
+                text: ["급한 업무를 처리하던 중 사소한 실수를 하고 말았다.", "서류의 순서를 잘못 정리했고, 상사에게 보고하기 전에 발견했지만...", "당황하고 있는데 소연이 다가온다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "soyeon_help" }]
+            },
+
+            soyeon_help: {
+                speaker: "소연",
+                text: ["괜찮아요. 누구나 실수는 하는 법이에요.", "저도 처음엔 그런 일이 많았거든요.", "이런 일이 생겼을 때는 체크리스트를 만들어두면 도움이 될 거예요.", "제가 사용하는 방법을 알려드릴게요.", "같이 정리해보죠."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [
+                    { text: "고마워요, 정말 도움이 돼요", effects: { heroine2: 12, work: 9 }, next: "soyeon_help_illust" },
+                    { text: "혼자서도 할 수 있어요", effects: { work: -3 }, next: "time_pass_evening" },
+                    { text: "앞으로 더 조심할게요, 가르쳐주세요", effects: { heroine2: 15, work: 13 }, next: "soyeon_help_illust" }
+                ]
+            },
+
+            soyeon_help_illust: {
+                speaker: "소연",
+                text: ["이렇게 하면 실수를 줄일 수 있어요.", "천천히, 차근차근 해보세요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE2_HELP,
+                illustKey: "HEROINE2_HELP", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "time_pass_evening" }]
+            },
+
+            time_pass_evening: {
+                speaker: "내레이션",
+                text: ["저녁 시간이 되었다. 대부분의 직원들은 퇴근 준비를 하고 있다.", "하지만 신입사원인 당신은 아직 처리해야 할 업무가 남아있다.", "야근을 하게 될 것 같다."],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: null,
+                choices: [{ text: "다음", next: "evening_work" }]
+            },
+
+            evening_work: {
+                speaker: "내레이션",
+                text: ["저녁이 되어 야근을 하게 되었다.", "사무실에는 몇 명만 남아있고, 조용한 분위기 속에서 일에 집중하고 있다.", "그런데... 책상 위에 따뜻한 커피가 놓여있다?"],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: null,
+                choices: [{ text: "다음", next: "secret_coffee" }]
+            },
+
+            secret_coffee: {
+                speaker: "내레이션",
+                text: ["누가 두고 간 걸까? 주위를 둘러보니 지은이 멀리서 슬쩍 이쪽을 보고 있다.", "그녀와 눈이 마주치자 급하게 고개를 돌린다.", "따뜻한 커피와 함께 작은 메모도 있다."],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [
+                    { text: "고맙다고 문자를 보낸다", effects: { heroine3: 12 }, next: "jieun_coffee_illust" },
+                    { text: "모르는 척 한다", next: "time_pass_week" },
+                    { text: "직접 가서 고맙다고 말한다", effects: { heroine3: 15 }, next: "jieun_coffee_illust" }
+                ]
+            },
+
+            jieun_coffee_illust: {
+                speaker: "지은",
+                text: ["아... 들켰네.", "야근하는 거 보니까... 그냥..."],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE3_COFFEE,
+                illustKey: "HEROINE3_COFFEE", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "time_pass_week" }]
+            },
+
+            time_pass_week: {
+                speaker: "내레이션",
+                text: ["한 주가 더 지나갔다.", "금요일 저녁, 드디어 첫 번째 회식이 있는 날이다.", "팀 분위기를 익히고 동료들과 친해질 수 있는 좋은 기회다."],
+                background: IMAGE_URLS.RESTAURANT,
+                character: null,
+                choices: [{ text: "다음", next: "company_dinner" }]
+            },
+
+            company_dinner: {
+                speaker: "내레이션",
+                text: ["주말이 지나고 월요일, 팀 회식이 있는 날이다.", "회식 자리에서는 평소와 다른 모습들을 볼 수 있었다.", "분위기도 한결 편안하고, 모두들 웃으며 이야기를 나누고 있다.", "술 한 잔 정도는 괜찮을 것 같다."],
+                background: IMAGE_URLS.RESTAURANT,
+                character: null,
+                choices: [{ text: "다음", next: "dinner_talk" }]
+            },
+
+            dinner_talk: {
+                speaker: "은지", // 유나 -> 은지
+                text: ["평소엔 뭐 해? 취미 같은 거 있어?", "나는 요즘 요리에 빠져있어. 언젠가 맛있는 거 해줄게!", "집에서 혼자 이것저것 만들어보는데 정말 재밌어.", "너도 요리 좋아해? 같이 해보지 않을래?"],
+                background: IMAGE_URLS.RESTAURANT,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "요리 배우고 싶어, 가르쳐줘", effects: { heroine1: 8 }, next: "time_pass_next_week" },
+                    { text: "나는 게임하는 걸 좋아해", effects: { heroine1: 5 }, next: "time_pass_next_week" }
+                ]
+            },
+
+            time_pass_next_week: {
+                speaker: "내레이션",
+                text: ["또 다른 한 주가 지나갔다.", "이제 회사 생활에도 많이 익숙해졌고, 동료들과의 관계도 자연스러워졌다.", "수요일 오후, 중요한 프로젝트 미팅이 예정되어 있다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "project_meeting" }]
+            },
+
+            project_meeting: {
+                speaker: "내레이션",
+                text: ["다음 날, 중요한 프로젝트 미팅이 있었다.", "각자의 의견을 내는 시간에 누구의 의견에 동조할지 선택해야 한다.", "팀워크가 중요한 순간이다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "meeting_opinions" }]
+            },
+
+            meeting_opinions: {
+                speaker: "지은",
+                text: ["저희 회사 입장에서는 이런 방향이 좋을 것 같아요.", "물론 최종 결정은 프래빗에서 하시겠지만요.", "사용자 경험을 고려하면 이 방법이 더 효과적일 거예요.", "어떻게 생각하세요?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [
+                    { text: "지은의 의견에 적극 동의한다", effects: { heroine3: 9, work: 7 }, next: "time_pass_memo_day" },
+                    { text: "중립적인 입장을 취한다", effects: { work: 2 }, next: "time_pass_memo_day" }
+                ]
+            },
+
+            time_pass_memo_day: {
+                speaker: "내레이션",
+                text: ["며칠이 더 지났다.", "목요일 오후, 또 다른 회의가 있는 날이다.", "회의실에서 진행되는 중요한 발표를 듣고 있는데..."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "memo_incident" }]
+            },
+
+            memo_incident: {
+                speaker: "내레이션",
+                text: ["회의 중에 은지가 몰래 쪽지를 건넨다.", "주위 사람들이 보지 않게 조심스럽게 전달하는 모습이 보인다.", "뭐라고 쓰여 있을까?"], // 유나 -> 은지
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [{ text: "쪽지를 본다", next: "memo_content" }]
+            },
+
+            memo_content: {
+                speaker: "은지 (쪽지)", // 유나 -> 은지
+                text: ["오늘 점심 같이 먹을까? 새로 생긴 파스타집 가보고 싶어!", "아니면 회의 끝나고 커피라도... 어때?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "좋다고 쪽지로 답한다", effects: { heroine1: 9 }, next: "eunji_memo_illust" }, // 유나 -> 은지
+                    { text: "회의에 집중하자고 답한다", effects: { heroine1: -2, work: 5 }, next: "time_pass_rainy_day" }
+                ]
+            },
+
+            eunji_memo_illust: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["오늘 점심 같이 먹을까?", "새로 생긴 파스타집 정말 맛있다던데!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.EUNJI_MEMO, // 유나 -> 은지
+                illustKey: "EUNJI_MEMO", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "time_pass_rainy_day" }]
+            },
+
+            // --- 새로운 장면 추가 시작 ---
+
+            time_pass_rainy_day: {
+                speaker: "내레이션",
+                text: ["며칠 뒤, 갑작스런 소나기가 내리는 퇴근길.", "우산이 없어서 발만 동동 구르고 있는데, 누군가 다가온다."],
+                background: IMAGE_URLS.STREET_NIGHT,
+                character: null,
+                choices: [{ text: "다음", next: "rainy_day_encounter" }]
+            },
+
+            rainy_day_encounter: {
+                speaker: "소연",
+                text: ["우산 없으신가요? 같이 쓰시겠어요?", "이런 날씨에 감기 걸리면 안 되죠.", "괜찮아요, 저도 이쪽 방향이니까요."],
+                background: IMAGE_URLS.STREET_NIGHT,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [
+                    { text: "고맙다고 하고 같이 쓴다", effects: { heroine2: 14 }, next: "soyeon_umbrella_illust" },
+                    { text: "괜찮다고 사양한다", effects: { heroine2: -3 }, next: "soyeon_weekend_call_scene" }, // soyeon_weekend_call_scene으로 연결
+                    { text: "죄송하다고 하고 뛰어간다", effects: { heroine2: -5, work: -2 }, next: "soyeon_weekend_call_scene" } // soyeon_weekend_call_scene으로 연결
+                ]
+            },
+
+            soyeon_umbrella_illust: {
+                speaker: "소연",
+                text: ["비가 많이 오네요. 조심해서 가요.", "덕분에 저도 심심하지 않네요."],
+                background: IMAGE_URLS.STREET_NIGHT,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE2_UMBRELLA,
+                illustKey: "HEROINE2_UMBRELLA", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "soyeon_weekend_call_scene" }] // soyeon_weekend_call_scene으로 연결
+            },
+
+            soyeon_weekend_call_scene: { // soyeon_weekend_call 대신 새로운 장면 이름 사용
+                speaker: "내레이션",
+                text: ["소연과 헤어진 후, 은지에게서 메시지가 도착했다.", "주말에 회사 프로젝트 관련해서 조언을 구하고 싶다는 내용이다."], // 유나 -> 은지
+                background: IMAGE_URLS.OFFICE_DAY, 
+                character: null,
+                fullscreen: IMAGE_URLS.SOYEON_MESSAGE_ILLUST, // New image for this scene
+                illustKey: "SOYEON_MESSAGE_ILLUST", // New illust key for gallery
+                choices: [
+                    { text: "도와주러 간다", effects: { heroine2: 18, work: 12 }, next: "soyeon_project_help" },
+                    { text: "주말에는 쉬고 싶다고 거절한다", effects: { heroine2: -5, work: -3 }, next: "jieun_weekend_call" }
+                ]
+            },
+
+            eunji_weekend_call: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["주말에 뭐 해? 나랑 같이 영화 보러 갈래?", "아니면 새로 생긴 맛집 탐방도 좋고!", "오랜만에 같이 놀면 재밌을 것 같은데!", "어때? 같이 시간 보낼래?"],
+                background: IMAGE_URLS.OFFICE_DAY, // 배경은 다시 사무실로
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "좋아, 영화 보러 가자!", effects: { heroine1: 15 }, next: "eunji_movie_date" }, // 유나 -> 은지
+                    { text: "미안, 주말엔 좀 쉬고 싶어", effects: { heroine1: -5 }, next: "soyeon_weekend_call_scene" }, // soyeon_weekend_call_scene으로 연결
+                    { text: "다른 친구랑 선약이 있어", effects: { heroine1: -10 }, next: "soyeon_weekend_call_scene" } // soyeon_weekend_call_scene으로 연결
+                ]
+            },
+
+            eunji_movie_date: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: ["은지와 함께 즐거운 영화 데이트를 했다.", "영화가 끝나고, 은지가 당신에게 커피를 건넨다."], // 유나 -> 은지
+                background: IMAGE_URLS.CAFE,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "고마워, 잘 마실게", effects: { heroine1: 11 }, next: "eunji_coffee_illust" } // 유나 -> 은지
+                ]
+            },
+
+            eunji_coffee_illust: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["어때? 내 추천 커피 맛있지?", "다음엔 더 맛있는 거 사줄게!"],
+                background: IMAGE_URLS.CAFE,
+                character: null,
+                fullscreen: IMAGE_URLS.EUNJI_COFFEE, // 유나 -> 은지
+                illustKey: "EUNJI_COFFEE", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "soyeon_weekend_call_scene" }] // soyeon_weekend_call_scene으로 연결
+            },
+
+            soyeon_project_help: {
+                speaker: "소연",
+                text: ["바쁜데 와주셔서 정말 감사해요.", "덕분에 막혔던 부분이 해결됐어요.", "역시 당신은 믿을 수 있는 사람이네요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [
+                    { text: "별말씀을요, 당연히 도와드려야죠", effects: { heroine2: 11, work: 7 }, next: "jieun_weekend_call" },
+                    { text: "저도 배우는 게 많았어요", effects: { heroine2: 14, work: 9 }, next: "jieun_weekend_call" }
+                ]
+            },
+            
+            jieun_weekend_call: {
+                speaker: "내레이션",
+                text: ["주말 오후, 지은에게서 연락이 온다.", "근처 공원에서 산책 중인데, 잠시 만날 수 있냐는 내용이다."],
+                background: IMAGE_URLS.PARK,
+                character: null,
+                choices: [
+                    { text: "만나러 간다", effects: { heroine3: 15 }, next: "jieun_park_stroll" },
+                    { text: "바쁘다고 거절한다", effects: { heroine3: -4 }, next: "common_route_mid_game" }
+                ]
+            },
+
+            jieun_park_stroll: {
+                speaker: "지은",
+                text: ["산책하다가... 우연히 만났네요.", "날씨도 좋고, 기분 전환도 되고... 좋네요.", "이렇게 같이 걷는 것도 나쁘지 않네요."],
+                background: IMAGE_URLS.PARK,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [
+                    { text: "그러게요, 상쾌하네요", effects: { heroine3: 11 }, next: "jieun_praise_illust" }
+                ]
+            },
+
+            jieun_praise_illust: {
+                speaker: "지은",
+                text: ["당신과 함께라면... 어떤 일이든 잘 해낼 수 있을 것 같아요.", "정말... 고마워요."],
+                background: IMAGE_URLS.PARK,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE3_PRAISE,
+                illustKey: "HEROINE3_PRAISE", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "common_route_mid_game" }]
+            },
+
+            common_route_mid_game: {
+                speaker: "내레이션",
+                text: ["시간이 흘러, 당신은 회사 생활에 완전히 적응했다.", "세 명의 동료들과도 각별한 관계를 유지하고 있다.", "이제 곧 중요한 프로젝트의 최종 발표가 다가오고 있다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "final_project_prep" }]
+            },
+
+            final_project_prep: {
+                speaker: "내레이션",
+                text: ["프로젝트 발표를 앞두고, 팀원들 사이에서 의견 충돌이 발생했다.", "각자의 주장이 팽팽하게 맞서고 있는데...", "당신은 누구의 편을 들어줄 것인가?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [
+                    { text: "은지의 의견을 지지한다", effects: { heroine1: 18, heroine2: -3, heroine3: -3 }, next: "conflict_eunji" }, // 유나 -> 은지
+                    { text: "소연의 의견을 지지한다", effects: { heroine2: 18, heroine1: -3, heroine3: -3 }, next: "conflict_soyeon" },
+                    { text: "지은의 의견을 지지한다", effects: { heroine3: 18, heroine1: -3, heroine2: -3 }, next: "conflict_jieun" },
+                    { text: "중재를 시도한다", effects: { heroine1: 8, heroine2: 8, heroine3: 8, work: 15 }, next: "conflict_neutral" }
+                ]
+            },
+
+            conflict_eunji: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["역시 너는 내 마음을 알아주는구나! 고마워!", "다른 사람들은 너무 현실적이야. 꿈을 좀 가져야지!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [{ text: "다음", next: "eunji_conflict_illust" }] // 유나 -> 은지
+            },
+
+            eunji_conflict_illust: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["우리 둘이서라면 뭐든지 할 수 있을 거야!", "앞으로도 잘 부탁해!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.EUNJI_CONFLICT, // 유나 -> 은지
+                illustKey: "EUNJI_CONFLICT", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "route_decision" }]
+            },
+
+            conflict_soyeon: {
+                speaker: "소연",
+                text: ["합리적인 판단이세요. 감사합니다.", "감정보다는 데이터가 중요하죠.", "당신 덕분에 프로젝트가 성공할 것 같아요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [{ text: "다음", next: "soyeon_conflict_illust" }]
+            },
+
+            soyeon_conflict_illust: {
+                speaker: "소연",
+                text: ["당신의 지지는 저에게 큰 힘이 됩니다.", "앞으로도 함께 좋은 성과를 내고 싶어요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE2_CONFLICT,
+                illustKey: "HEROINE2_CONFLICT", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "route_decision" }]
+            },
+
+            conflict_jieun: {
+                speaker: "지은",
+                text: ["제 의견에 동의해주셔서... 정말 기뻐요.", "사실 많이 걱정했었거든요.", "당신이 있어서 든든해요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [{ text: "다음", next: "jieun_conflict_illust" }]
+            },
+
+            jieun_conflict_illust: {
+                speaker: "지은",
+                text: ["당신 덕분에 용기를 얻었어요.", "앞으로도... 잘 부탁드려요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE3_CONFLICT,
+                illustKey: "HEROINE3_CONFLICT", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "route_decision" }]
+            },
+
+            conflict_neutral: {
+                speaker: "내레이션",
+                text: ["당신의 현명한 중재 덕분에 팀원들은 합의점을 찾고, 프로젝트는 순조롭게 진행되었다.", "모두에게 좋은 인상을 남겼다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "route_decision" }]
+            },
+
+            route_decision: {
+                speaker: "내레이션",
+                text: ["이제 당신의 마음은 어느 한 사람에게로 기울고 있다.", "혹은 업무에 대한 열정으로 가득 차 있을 수도 있다.", "당신의 선택에 따라 이야기는 다른 방향으로 흘러갈 것이다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "final_stage_check" }]
+            },
+
+            final_stage_check: {
+                speaker: "내레이션",
+                text: ["당신의 노력과 선택이 결실을 맺을 시간이다.", "누구와 가장 가까워졌는지 확인해볼까?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [], // 동적으로 생성
+                onEnter: function() {
+                    const { heroine1, heroine2, heroine3, work } = gameState;
+                    let nextScene = 'failure_ending_epilogue'; // 기본은 실패 엔딩 에필로그
+
+                    // 1. 히든 엔딩 (가장 높은 우선순위)
+                    if (heroine1 >= 60 && heroine2 >= 60 && heroine3 >= 60 && work >= 70) {
+                        nextScene = 'hidden_ending_polygamy_epilogue';
+                    }
+                    // 2. 개별 해피 엔딩
+                    else if (heroine1 >= 80 && heroine1 > heroine2 && heroine1 > heroine3) {
+                        nextScene = 'eunji_happy_ending_epilogue'; // 유나 -> 은지
+                    } else if (heroine2 >= 80 && heroine2 > heroine1 && heroine2 > heroine3) {
+                        nextScene = 'soyeon_happy_ending_epilogue';
+                    } else if (heroine3 >= 80 && heroine3 > heroine1 && heroine3 > heroine2) {
+                        nextScene = 'jieun_happy_ending_epilogue';
+                    }
+                    // 3. 은지 NTR 엔딩 (은지 호감도가 높지만 해피 엔딩 조건 미달 및 다른 히로인 호감도도 높은 경우)
+                    else if (heroine1 >= 50 && heroine1 < 80 && heroine2 >= 40 && heroine3 >= 40) {
+                        nextScene = 'eunji_ntr_ending_episode'; // 유나 -> 은지
+                    }
+                    // 4. 개별 배드 엔딩 (특정 히로인 호감도가 높지만 해피 엔딩 조건 미달 시)
+                    else if (heroine1 >= 50 && heroine1 > heroine2 && heroine1 > heroine3) {
+                        nextScene = 'eunji_bad_ending_epilogue'; // 유나 -> 은지
+                    } else if (heroine2 >= 50 && heroine2 > heroine1 && heroine2 > heroine3) {
+                        nextScene = 'soyeon_bad_ending_epilogue';
+                    } else if (heroine3 >= 50 && heroine3 > heroine1 && heroine3 > heroine2) {
+                        nextScene = 'jieun_bad_ending_epilogue';
+                    }
+                    // 5. 일반 실패 엔딩 (업무 평가가 너무 낮거나 아무도 호감도가 충분히 높지 않은 경우)
+                    else if (work < 30 || (heroine1 < 50 && heroine2 < 50 && heroine3 < 50)) {
+                        nextScene = 'failure_ending_epilogue';
+                    }
+                    // 그 외의 경우 (호감도가 고르게 분포되어 있으나 히든 엔딩 조건 미달 등)
+                    else {
+                        nextScene = 'failure_ending_epilogue';
+                    }
+                    
+                    scenes.final_stage_check.choices = [{ text: "결과 확인", next: nextScene }];
+                }
+            },
+
+            // --- 은지 루트 ---
+            eunji_confession: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: ["은지와의 관계는 단순한 동료를 넘어선 지 오래다.", "어느 날 저녁, 은지가 당신을 회사 옥상으로 불러낸다."], // 유나 -> 은지
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [{ text: "다음", next: "eunji_confession_dialogue" }] // 유나 -> 은지
+            },
+            eunji_confession_dialogue: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["있잖아... 나 사실 너 좋아해!", "어릴 때부터 너랑 같이 있으면 항상 즐거웠어.", "이제는... 그냥 친구 이상으로 너를 보고 싶어.", "내 마음을 받아줄래?"],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [
+                    { text: "나도 너를 좋아해!", effects: { heroine1: 38 }, next: "eunji_happy_ending_illust" }, // 유나 -> 은지
+                    { text: "친구로 지내고 싶어", effects: { heroine1: -50 }, next: "eunji_bad_ending_epilogue" } // 유나 -> 은지
+                ]
+            },
+            eunji_happy_ending_illust: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["정말? 다행이다... 나 혼자만의 마음이 아니었구나!", "앞으로 우리 행복하게 지내자!"],
+                background: IMAGE_URLS.OFFICE_NIGHT,
+                character: null,
+                fullscreen: IMAGE_URLS.EUNJI_CONFESSION, // 유나 -> 은지
+                illustKey: "EUNJI_CONFESSION", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "eunji_happy_ending_epilogue" }] // 유나 -> 은지
+            },
+            eunji_happy_ending_epilogue: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: ["은지와 함께하는 매일매일이 마치 동화 같았다. 우리의 사랑은 회사에서도 빛을 발했고, 모두의 축복 속에 우리는 행복한 미래를 그려나갔다."], // 유나 -> 은지
+                background: IMAGE_URLS.EUNJI_HAPPY, // 유나 -> 은지
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "eunji_happy_ending" }] // 유나 -> 은지
+            },
+            eunji_happy_ending: { // 유나 -> 은지
+                ending: { title: "해피 엔딩: 은지와 함께", text: "어릴 적 꿈과 사랑을 모두 이룬 당신, 은지와 영원히 행복하세요!" }, // 유나 -> 은지
+                background: IMAGE_URLS.EUNJI_HAPPY, // 유나 -> 은지
+                illustKey: "EUNJI_HAPPY" // 갤러리 수집용 키
+            },
+            eunji_bad_ending_epilogue: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: ["은지의 밝은 미소는 더 이상 나를 향하지 않았다. 그녀의 상처받은 뒷모습은 오랫동안 내 마음에 남았다. 회사 생활은 활기를 잃었고, 나는 후회 속에서 하루하루를 보냈다."], // 유나 -> 은지
+                background: IMAGE_URLS.EUNJI_BAD, // 유나 -> 은지
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "eunji_bad_ending" }] // 유나 -> 은지
+            },
+            eunji_bad_ending: { // 유나 -> 은지
+                ending: { title: "배드 엔딩: 잃어버린 미소", text: "은지의 마음을 외면한 당신, 그녀와의 관계는 돌이킬 수 없게 되었다." }, // 유나 -> 은지
+                background: IMAGE_URLS.EUNJI_BAD, // 유나 -> 은지
+                illustKey: "EUNJI_BAD" // 갤러리 수집용 키
+            },
+
+            // --- 소연 루트 ---
+            soyeon_confession: {
+                speaker: "내레이션",
+                text: ["소연과의 관계는 신뢰를 바탕으로 깊어졌다.", "어느 날, 소연이 당신에게 진지한 이야기를 꺼낸다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [{ text: "다음", next: "soyeon_confession_dialogue" }]
+            },
+            soyeon_confession_dialogue: {
+                speaker: "소연",
+                text: ["당신과 함께 일하면서 많은 것을 배웠어요.", "당신은 제가 믿고 의지할 수 있는 유일한 사람이에요.", "이 감정이... 사랑이라고 생각해요.", "저와 함께 미래를 만들어가지 않겠어요?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [
+                    { text: "소연의 마음을 받아들인다", effects: { heroine2: 38 }, next: "soyeon_happy_ending_illust" },
+                    { text: "동료 이상은 힘들어요", effects: { heroine2: -50 }, next: "soyeon_bad_ending_epilogue" } // 배드 엔딩 에필로그로 연결
+                ]
+            },
+            soyeon_happy_ending_illust: {
+                speaker: "소연",
+                text: ["정말 기뻐요. 당신이라면... 어떤 어려움도 함께 헤쳐나갈 수 있을 거예요.", "저의 모든 것을 당신에게 바칠게요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE2_CONFESSION,
+                illustKey: "HEROINE2_CONFESSION", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "soyeon_happy_ending_epilogue" }] // 해피 엔딩 에필로그로 연결
+            },
+            soyeon_happy_ending_epilogue: {
+                speaker: "내레이션",
+                text: ["소연과 나는 서로의 가장 든든한 파트너가 되었다. 그녀의 이성적인 판단과 나의 열정이 만나, 회사에서도 눈부신 성과를 이루었다. 우리의 사랑은 견고한 신뢰 위에 피어났다."],
+                background: IMAGE_URLS.SOYEON_HAPPY,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "soyeon_happy_ending" }]
+            },
+            soyeon_happy_ending: {
+                ending: { title: "해피 엔딩: 완벽한 파트너", text: "소연과 함께 일과 사랑 모두에서 성공을 거두세요!" },
+                background: IMAGE_URLS.SOYEON_HAPPY, // 최종 엔딩 화면 배경
+                illustKey: "SOYEON_HAPPY" // 갤러리 수집용 키
+            },
+            soyeon_bad_ending_epilogue: {
+                speaker: "내레이션",
+                text: ["소연의 차가운 시선은 나를 위축시켰다. 그녀의 신뢰를 잃은 대가는 혹독했다. 업무는 꼬이고, 회사에서의 입지는 점점 좁아져 갔다. 그녀의 냉정한 판단이 옳았음을 인정해야 했다."],
+                background: IMAGE_URLS.SOYEON_BAD,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "soyeon_bad_ending" }]
+            },
+            soyeon_bad_ending: {
+                ending: { title: "배드 엔딩: 깨진 신뢰", text: "소연의 마음을 저버린 당신, 그녀와의 관계는 회복 불능이 되었다." },
+                background: IMAGE_URLS.SOYEON_BAD, // 최종 엔딩 화면 배경
+                illustKey: "SOYEON_BAD" // 갤러리 수집용 키
+            },
+
+            // --- 지은 루트 ---
+            jieun_confession: {
+                speaker: "내레이션",
+                text: ["지은과의 관계는 조용하지만 깊은 유대감으로 발전했다.", "어느 날, 지은이 당신에게 조심스럽게 다가온다."],
+                background: IMAGE_URLS.STREET_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [{ text: "다음", next: "jieun_confession_dialogue" }]
+            },
+            jieun_confession_dialogue: {
+                speaker: "지은",
+                text: ["저... 사실은... 당신을 좋아해요.", "처음에는 그냥 동료라고 생각했는데...", "점점 더 당신에게 의지하게 됐어요.", "제 마음을... 받아주실 수 있을까요?"],
+                background: IMAGE_URLS.STREET_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [
+                    { text: "지은의 고백을 받아들인다", effects: { heroine3: 38 }, next: "jieun_happy_ending_illust" },
+                    { text: "미안하지만, 친구로 지내고 싶어", effects: { heroine3: -50 }, next: "jieun_bad_ending_epilogue" } // 배드 엔딩 에필로그로 연결
+                ]
+            },
+            jieun_happy_ending_illust: {
+                speaker: "지은",
+                text: ["정말... 정말 고마워요.", "당신과 함께라면... 뭐든지 할 수 있을 것 같아요.", "앞으로도... 잘 부탁드려요."],
+                background: IMAGE_URLS.STREET_DAY,
+                character: null,
+                fullscreen: IMAGE_URLS.HEROINE3_MARRIAGE, // Confession illust가 없어서 Marriage illust로 대체
+                illustKey: "HEROINE3_MARRIAGE", // 갤러리 수집용 키
+                choices: [{ text: "다음", next: "jieun_happy_ending_epilogue" }] // 해피 엔딩 에필로그로 연결
+            },
+            jieun_happy_ending_epilogue: {
+                speaker: "내레이션",
+                text: ["수줍음 많던 지은은 내 옆에서 점차 밝게 빛났다. 우리는 서로의 부족함을 채워주며 따뜻한 사랑을 키워나갔다. 그녀의 작은 미소 하나하나가 내 삶을 가득 채웠다."],
+                background: IMAGE_URLS.JIEUN_HAPPY,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "jieun_happy_ending" }]
+            },
+            jieun_happy_ending: {
+                ending: { title: "해피 엔딩: 따뜻한 동반자", text: "지은과 함께 서로를 보듬어주며 행복한 미래를 만들어가세요!" },
+                background: IMAGE_URLS.JIEUN_HAPPY, // 최종 엔딩 화면 배경
+                illustKey: "JIEUN_HAPPY" // 갤러리 수집용 키
+            },
+            jieun_bad_ending_epilogue: {
+                speaker: "내레이션",
+                text: ["지은은 나를 피하기 시작했다. 그녀의 수줍은 마음을 외면한 대가는 고독이었다. 협업 프로젝트는 삐걱거렸고, 나는 그녀와의 어색한 침묵 속에서 죄책감을 느꼈다."],
+                background: IMAGE_URLS.JIEUN_BAD,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "jieun_bad_ending" }]
+            },
+            jieun_bad_ending: {
+                ending: { title: "배드 엔딩: 멀어진 마음", text: "지은의 순수한 마음을 외면한 당신, 그녀와의 관계는 멀어지고 말았다." },
+                background: IMAGE_URLS.JIEUN_BAD, // 최종 엔딩 화면 배경
+                illustKey: "JIEUN_BAD" // 갤러리 수집용 키
+            },
+
+            // --- 히든 엔딩 (모두 호감도 높고 업무도 높은 경우) ---
+            hidden_ending_proposal: {
+                speaker: "내레이션",
+                text: ["당신은 세 명의 히로인 모두와 좋은 관계를 유지했으며, 업무적으로도 뛰어난 성과를 보여주었다.", "어느 날, 세 히로인이 당신을 따로 불러낸다."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [{ text: "다음", next: "hidden_ending_dialogue" }]
+            },
+            hidden_ending_dialogue: {
+                speaker: "은지", // 유나 -> 은지
+                text: ["우리... 사실... 너를 좋아해!"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.EUNJI_BASE, // 유나 -> 은지
+                choices: [{ text: "다음", next: "hidden_ending_dialogue_2" }]
+            },
+            hidden_ending_dialogue_2: {
+                speaker: "소연",
+                text: ["당신은 저희 모두에게 특별한 존재예요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE2_BASE,
+                choices: [{ text: "다음", next: "hidden_ending_dialogue_3" }]
+            },
+            hidden_ending_dialogue_3: {
+                speaker: "지은",
+                text: ["저희... 모두... 당신을 사랑해요."],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: IMAGE_URLS.HEROINE3_BASE,
+                choices: [{ text: "다음", next: "hidden_ending_choice" }]
+            },
+            hidden_ending_choice: {
+                speaker: "내레이션",
+                text: ["세 명의 히로인이 동시에 당신에게 고백했다!", "당신은 어떤 선택을 할 것인가?"],
+                background: IMAGE_URLS.OFFICE_DAY,
+                character: null,
+                choices: [
+                    { text: "한 명을 선택한다 (은지)", effects: { heroine1: 53, heroine2: -15, heroine3: -15 }, next: "eunji_happy_ending_illust" }, // 유나 -> 은지
+                    { text: "한 명을 선택한다 (소연)", effects: { heroine2: 53, heroine1: -15, heroine3: -15 }, next: "soyeon_happy_ending_illust" },
+                    { text: "한 명을 선택한다 (지은)", effects: { heroine3: 53, heroine1: -15, heroine2: -15 }, next: "jieun_happy_ending_illust" },
+                    { text: "모두와 함께하고 싶다고 말한다", next: "hidden_ending_polygamy_epilogue" } // 히든 엔딩 에필로그로 연결
+                ]
+            },
+            hidden_ending_polygamy_epilogue: {
+                speaker: "내레이션",
+                text: ["세 명의 아름다운 그녀들과 함께하는 삶은 꿈만 같았다. 각각의 매력이 나의 삶을 다채롭게 채워주었고, 우리는 서로를 이해하고 사랑하며 영원한 행복을 약속했다. 이 모든 것이 현실이라니, 믿기지 않는 나날들이었다."],
+                background: IMAGE_URLS.MARRIAGE_PROPOSAL,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "hidden_ending_polygamy" }]
+            },
+            hidden_ending_polygamy: {
+                ending: { title: "히든 엔딩: 꿈같은 하렘", text: "세 명의 히로인과 함께 영원히 행복하세요!" },
+                background: IMAGE_URLS.MARRIAGE_PROPOSAL, // 최종 엔딩 화면 배경
+                illustKey: "MARRIAGE_PROPOSAL" // 갤러리 수집용 키
+            },
+
+            // --- 은지 NTR 엔딩 에피소드 ---
+            eunji_ntr_ending_episode: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: [
+                    "어느새 계절이 바뀌고, 당신은 회사 생활에 완전히 익숙해져 있었다. 바쁜 일상 속에서도 가끔 문득, 은지의 활기찬 미소가 떠오르곤 했다. 그러던 어느 날, 퇴근길에 들른 카페에서 익숙한 뒷모습을 발견했다. 은지였다. 그녀를 부르려던 찰나, 그녀가 뒤돌아섰고, 당신의 눈은 자연스럽게 그녀의 왼손으로 향했다. 그곳에는… 빛나는 반지가 끼워져 있었다." // 유나 -> 은지
+                ],
+                background: IMAGE_URLS.NTR_ENDING, // 배경은 NTR 엔딩 이미지
+                character: null, // 캐릭터는 대사 중에 등장
+                fullscreen: IMAGE_URLS.NTR_ENDING, // 전체화면 일러스트로 표시
+                illustKey: "NTR_ENDING", // 갤러리 수집용 키 (에피소드 중 일러스트)
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_1" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_1: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["어? 주인공! 오랜만이야! 여기서 다 만나네? 잘 지냈어?"],
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null, // 은지 이미지 필요하면 추가
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_2" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_2: { // 유나 -> 은지
+                speaker: "주인공",
+                text: ["은지! 정말 오랜만이다. 잘 지냈어? 어… 그 반지…?"], // 유나 -> 은지
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null,
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_3" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_3: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["아, 이거? 응! 나 결혼해! 다음 달이야! ", "사실… 너한테 제일 먼저 말해주고 싶었어. 네가 날 많이 아껴주고, 또 나도 너를 정말 좋아했었거든."],
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null,
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_4" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_4: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["근데… 너는 모두에게 너무 상냥해서… 나는 네 옆에 있을 수 없었어. 네가 나한테만 특별한 게 아니라는 걸 알았을 때… 조금 슬펐거든."],
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null,
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_5" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_5: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["지금 만나는 사람은… 나한테만 오직 나한테만 특별해. 그래서 이 사람이라면 괜찮겠다 싶었어."],
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null,
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_dialogue_6" }] // 유나 -> 은지
+            },
+            eunji_ntr_dialogue_6: { // 유나 -> 은지
+                speaker: "은지", // 유나 -> 은지
+                text: ["이것 봐, 반지 예쁘지? 너무 행복해! 정말 꿈같아!", "너도 어때? 좋은 사람 만났어? 나중에 꼭 소개해 줘! 우리 꼭 행복하게 살자!"],
+                background: IMAGE_URLS.NTR_ENDING,
+                character: null,
+                fullscreen: IMAGE_URLS.NTR_ENDING,
+                choices: [{ text: "다음", next: "eunji_ntr_ending_final_narration" }] // 유나 -> 은지
+            },
+            eunji_ntr_ending_final_narration: { // 유나 -> 은지
+                speaker: "내레이션",
+                text: ["은지의 뒷모습이 멀어지고, 당신은 텅 빈 카페에 홀로 남았다. 그녀의 말 한마디 한마디가 가슴에 비수처럼 박혔다. 모두에게 상냥했던 당신의 모습이, 결국 그녀를 당신 곁에서 멀어지게 만들었다는 것을 깨달았다. 그녀의 행복을 빌어줘야 할까? 아니면… 놓쳐버린 사랑에 대한 후회를 해야 할까? 씁쓸한 커피만이 당신의 입안을 맴돌았다."], // 유나 -> 은지
+                background: IMAGE_URLS.EUNJI_NTR_FINAL_ENDING, // 유나 -> 은지
+                character: null,
+                // fullscreen 속성은 최종 엔딩 화면에서는 더 이상 사용되지 않습니다.
+                ending: { title: "배드 엔딩: 놓쳐버린 사랑", text: "은지는 당신의 다정함 때문에 떠나갔다. 그녀의 행복을 빌어주자." }, // 유나 -> 은지
+                illustKey: "EUNJI_NTR_FINAL_ENDING" // 갤러리 수집용 키
+            },
+
+            // --- 일반 배드 엔딩 및 실패 엔딩 ---
+            failure_ending_epilogue: {
+                speaker: "내레이션",
+                text: ["결국 나는 회사 생활에 완전히 적응하지 못했다. 누구와도 깊은 관계를 맺지 못했고, 업무에서도 큰 성과를 내지 못했다. 외롭고 쓸쓸한 회사 생활이 계속되었다. 다음번에는 더 나은 선택을 할 수 있을까?"],
+                background: IMAGE_URLS.FAILURE_ENDING,
+                character: null,
+                choices: [{ text: "엔딩 보기", next: "failure_ending" }]
+            },
+            failure_ending: {
+                ending: { title: "배드 엔딩: 실패한 사회생활", text: "당신의 회사 생활은 순탄치 않았다. 다음 기회를 노려보세요." },
+                background: IMAGE_URLS.FAILURE_ENDING, // 최종 엔딩 화면 배경
+                illustKey: "FAILURE_ENDING" // 갤러리 수집용 키
+            }
+        };
+
+        // 게임 시작 함수
+        function startGame() {
+            titleScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            resetGame();
+            displayScene(scenes[gameState.currentScene]);
+            // 배경 음악 재생
+            // 브라우저 정책으로 자동 재생이 막힐 수 있으므로, play() 호출 후 에러 처리를 추가합니다.
+            backgroundMusic.play().catch(error => {
+                console.log("Autoplay prevented:", error);
+                // 사용자에게 음악 재생 버튼을 보여주는 등의 UI를 추가하여 수동 재생을 유도할 수 있습니다.
+            });
+        }
+
+        // 게임 재시작 함수
+        function restartGame() {
+            endingScreen.style.display = 'none';
+            titleScreen.style.display = 'flex'; // 타이틀 화면으로 돌아가기
+            resetGame(); // 게임 상태 초기화 (호감도 등)
+            // 배경 음악 다시 재생 (타이틀 화면에서 시작하므로)
+            backgroundMusic.play().catch(error => {
+                console.log("Autoplay prevented:", error);
+            });
+        }
+
+        // 게임 상태 초기화
+        function resetGame() {
+            gameState.currentScene = 'prologue';
+            gameState.heroine1 = 0;
+            gameState.heroine2 = 0;
+            gameState.heroine3 = 0;
+            gameState.work = 50;
+            gameState.eunjiConflictBadChoice = false; // 유나 -> 은지
+            gameState.soyeonConflictBadChoice = false;
+            gameState.jieunConflictBadChoice = false;
+            gameState.currentTextIndex = 0;
+            gameState.isTyping = false;
+            // collectedIllusts는 리셋하지 않음 (로컬 스토리지에서 관리)
+            updateStats();
+            hideFullscreenIllust(); // 재시작 시 일러스트 숨기기
+        }
+
+        // 스탯 업데이트 함수
+        function updateStats() {
+            // 스탯 값 0-100으로 제한
+            gameState.heroine1 = Math.max(0, Math.min(100, gameState.heroine1));
+            gameState.heroine2 = Math.max(0, Math.min(100, gameState.heroine2));
+            gameState.heroine3 = Math.max(0, Math.min(100, gameState.heroine3));
+            gameState.work = Math.max(0, Math.min(100, gameState.work));
+
+            eunjiBar.style.width = gameState.heroine1 + '%'; // 유나 -> 은지
+            eunjiValue.textContent = gameState.heroine1; // 유나 -> 은지
+            soyeonBar.style.width = gameState.heroine2 + '%';  
+            soyeonValue.textContent = gameState.heroine2;
+            jieunBar.style.width = gameState.heroine3 + '%';
+            jieunValue.textContent = gameState.heroine3; 
+            workBar.style.width = gameState.work + '%';
+            workValue.textContent = gameState.work;
+        }
+
+        // 하트 이펙트 생성
+        function createHeartEffect(x, y) {
+            const heart = document.createElement('div');
+            heart.classList.add('heart');
+            heart.style.left = `${x}px`;
+            heart.style.top = `${y}px`;
+            heartEffectsContainer.appendChild(heart);
+
+            // 애니메이션 종료 후 제거
+            heart.addEventListener('animationend', () => {
+                heart.remove();
+            });
+        }
+
+        // 대화 텍스트 타이핑 효과
+        function typeWriter(text, element, callback) {
+            let i = 0;
+            element.textContent = ''; // 기존 텍스트 초기화
+            gameState.isTyping = true;
+            let currentSceneRef = scenes[gameState.currentScene]; // 현재 씬 참조 저장
+
+            function type() {
+                // 현재 씬이 바뀌었으면 타이핑 중단
+                if (currentSceneRef !== scenes[gameState.currentScene]) {
+                    gameState.isTyping = false;
+                    return;
+                }
+
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, 30); // 타이핑 속도 조절
+                } else {
+                    gameState.isTyping = false;
+                    if (callback) callback();
+                }
+            }
+            type();
+        }
+
+        // 전체화면 일러스트 표시
+        function showFullscreenIllust(illustUrl, dialogue, choices) {
+            fullscreenIllust.style.display = 'flex';
+            fullscreenImage.src = illustUrl;
+            fullscreenImage.classList.add('fade-in'); // 페이드인 효과
+
+            // 일러스트 오버레이 내 대화 내용 업데이트
+            const illustSpeakerName = illustDialogueDiv.querySelector('.speaker-name') || document.createElement('div');
+            illustSpeakerName.className = 'speaker-name';
+            illustSpeakerName.textContent = dialogue.speaker;
+            
+            const illustDialogueText = illustDialogueDiv.querySelector('.dialogue-text') || document.createElement('div');
+            illustDialogueText.className = 'dialogue-text';
+            
+            // 기존 내용 제거 후 새로 추가 (중복 방지)
+            illustDialogueDiv.innerHTML = '';
+            illustDialogueDiv.appendChild(illustSpeakerName);
+            illustDialogueDiv.appendChild(illustDialogueText);
+
+            typeWriter(dialogue.text[dialogue.currentTextIndex], illustDialogueText, () => {
+                // 모든 텍스트가 표시된 후 클릭 대기 또는 선택지 표시
+                if (dialogue.text.length > 1) {
+                    fullscreenIllust.onclick = (event) => {
+                        if (event.target.classList.contains('illust-choice-button')) return;
+                        if (gameState.isTyping) return;
+
+                        if (dialogue.currentTextIndex < dialogue.text.length - 1) {
+                            dialogue.currentTextIndex++;
+                            typeWriter(dialogue.text[dialogue.currentTextIndex], illustDialogueText);
+                        } else {
+                            fullscreenIllust.onclick = null;
+                            if (choices.length > 0) {
+                                illustChoicesDiv.style.display = 'flex';
+                            } else {
+                                hideFullscreenIllust();
+                                moveToNextScene(dialogue.next);
+                            }
+                        }
+                    };
+                } else {
+                    if (choices.length > 0) {
+                        illustChoicesDiv.style.display = 'flex';
+                    } else {
+                        hideFullscreenIllust();
+                        moveToNextScene(dialogue.next);
+                    }
+                }
+            });
+            
+            illustChoicesDiv.innerHTML = '';
+            choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.classList.add('illust-choice-button');
+                button.textContent = choice.text;
+                button.onclick = () => {
+                    hideFullscreenIllust();
+                    applyEffects(choice.effects);
+                    moveToNextScene(choice.next);
+                };
+                illustChoicesDiv.appendChild(button);
+            });
+            
+            // 일러스트가 표시될 때 수집 상태 업데이트
+            if (dialogue.illustKey) {
+                markIllustAsCollected(dialogue.illustKey);
+            }
+        }
+
+        // 전체화면 일러스트 숨기기
+        function hideFullscreenIllust() {
+            fullscreenIllust.style.display = 'none';
+            fullscreenImage.src = '';
+            fullscreenImage.classList.remove('fade-in');
+            illustDialogueDiv.innerHTML = '';
+            illustChoicesDiv.innerHTML = '';
+            illustChoicesDiv.style.display = 'none';
+        }
+
+        // 장면 표시 함수
+        function displayScene(scene) {
+            // 전체화면 일러스트가 있으면 먼저 표시
+            if (scene.fullscreen) {
+                // 현재 씬의 텍스트와 선택지를 일러스트 오버레이에 표시
+                const illustDialogueContent = {
+                    speaker: scene.speaker,
+                    text: scene.text,
+                    currentTextIndex: 0,
+                    next: scene.choices[0] ? scene.choices[0].next : null, // 일러스트 후 바로 다음 씬으로 갈 경우
+                    illustKey: scene.illustKey // 갤러리 수집용 키 전달
+                };
+                showFullscreenIllust(scene.fullscreen, illustDialogueContent, scene.choices);
+                // 기존 게임 화면 UI는 숨김
+                dialogueContainer.classList.remove('dialogue-choices-active'); // 선택지 투명도 클래스 제거
+                dialogueBox.style.display = 'none';
+                choicesContainer.style.display = 'none';
+                characterImage.style.display = 'none';
+                return; // 일러스트가 표시되었으므로 여기서 함수 종료
+            } else {
+                // 일러스트가 없으면 일반 게임 화면 UI 표시
+                dialogueBox.style.display = 'block';
+                choicesContainer.style.display = 'none'; // 선택지는 나중에 보여줌
+                dialogueContainer.classList.remove('dialogue-choices-active'); // 선택지 투명도 클래스 제거
+                hideFullscreenIllust(); // 혹시 모를 일러스트 잔상 제거
+            }
+
+            // 배경 이미지 설정
+            gameBackground.style.backgroundImage = `url(${scene.background})`;
+
+            // 캐릭터 이미지 설정
+            if (scene.character) {
+                characterImage.src = scene.character;
+                characterImage.style.display = 'block';
+            } else {
+                characterImage.style.display = 'none';
+            }
+
+            // 화자 이름 설정
+            speakerName.textContent = scene.speaker;
+            if (scene.speaker === "내레이션" || scene.speaker.includes("(쪽지)")) {
+                speakerName.classList.add('narration');
+                dialogueBox.classList.add('narration-style');
+                dialogueBox.classList.remove('character-style');
+            } else {
+                speakerName.classList.remove('narration');
+                dialogueBox.classList.remove('narration-style');
+                dialogueBox.classList.add('character-style');
+            }
+
+            // 대화 텍스트 초기화 및 타이핑 효과 시작
+            gameState.currentTextIndex = 0;
+            typeWriter(scene.text[gameState.currentTextIndex], dialogueText, () => {
+                // 모든 텍스트가 표시된 후 클릭 대기 또는 선택지 표시
+                if (scene.text.length > 1) {
+                    // 다음 텍스트가 있다면 클릭 대기
+                    dialogueBox.onclick = (event) => {
+                        // 선택지 버튼 클릭 시 이벤트 전파 방지
+                        if (event.target.closest('.choices-container')) return;
+
+                        if (gameState.isTyping) {
+                            // 타이핑 중이면 아무것도 하지 않고 반환 (클릭 무시)
+                            return; 
+                        }
+                        
+                        if (gameState.currentTextIndex < scene.text.length - 1) { 
+                            gameState.currentTextIndex++;
+                            typeWriter(scene.text[gameState.currentTextIndex], dialogueText); 
+                        } else {
+                            // 마지막 텍스트에 도달
+                            dialogueBox.onclick = null; // 클릭 이벤트 제거
+                            showChoices(scene.choices);
+                        }
+                    };
+                } else {
+                    // 텍스트가 하나뿐이면 바로 선택지 표시
+                    showChoices(scene.choices);
+                }
+            });
+
+            // onEnter 함수 실행 (엔딩 분기점 등)
+            if (scene.onEnter && typeof scene.onEnter === 'function') {
+                scene.onEnter();
+            }
+        }
+
+        // 선택지 표시 함수
+        function showChoices(choices) {
+            choicesContainer.innerHTML = '';
+            choicesContainer.style.display = 'block';
+            dialogueContainer.classList.add('dialogue-choices-active'); // 선택지 표시 시 투명도 조절
+
+            choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.classList.add('choice-button');
+                button.textContent = choice.text;
+                button.onclick = () => {
+                    // 선택지 클릭 효과음 재생
+                    if (choiceSound) {
+                        choiceSound.currentTime = 0; // 재생 위치를 처음으로 리셋
+                        choiceSound.play().catch(e => console.log("Choice sound play error:", e));
+                    }
+
+                    // 하트 이펙트 추가 (선택지 클릭 시)
+                    const rect = button.getBoundingClientRect();
+                    createHeartEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+                    applyEffects(choice.effects);
+                    moveToNextScene(choice.next);
+                };
+                choicesContainer.appendChild(button);
+            });
+        }
+
+        // 스탯 변화 적용 함수
+        function applyEffects(effects) {
+            let affectionIncreased = false; // 호감도가 증가했는지 여부를 추적
+            if (effects) {
+                for (const stat in effects) {
+                    // 스탯이 0보다 크게 증가하는 경우에만 반짝이는 효과 적용
+                    if (effects[stat] > 0) {
+                        const barElement = document.getElementById(stat + 'Bar'); // 예: 'eunjiBar'
+                        if (barElement) {
+                            // 기존 애니메이션이 있다면 제거하여 다시 시작하도록 함
+                            barElement.classList.remove('sparkle');
+                            // 강제로 리플로우를 발생시켜 애니메이션을 재시작
+                            void barElement.offsetWidth;  
+                            barElement.classList.add('sparkle');
+                            // 애니메이션 종료 후 클래스 제거
+                            barElement.addEventListener('animationend', () => {
+                                barElement.classList.remove('sparkle');
+                            }, { once: true }); // 한 번만 실행되도록 { once: true } 옵션 사용
+                        }
+                    }
+
+                    // 호감도 스탯(heroine1, heroine2, heroine3)이 0보다 크게 증가하는 경우
+                    if (stat.startsWith('heroine') && effects[stat] > 0) {
+                        affectionIncreased = true;
+                    }
+                    gameState[stat] += effects[stat];
+                }
+                updateStats(); // 스탯 바 업데이트
+
+                // 호감도가 증가했을 경우 효과음 재생
+                if (affectionIncreased && affectionSound) {
+                    affectionSound.currentTime = 0; // 재생 위치를 처음으로 리셋
+                    affectionSound.play().catch(e => console.log("Affection sound play error:", e));
+                }
+            }
+        }
+
+        // 다음 장면으로 이동 함수
+        function moveToNextScene(nextSceneName) {
+            const nextScene = scenes[nextSceneName];
+            if (nextScene) {
+                gameState.currentScene = nextSceneName;
+                if (nextScene.ending) {
+                    // 엔딩 화면으로 가기 전에 일러스트 수집 상태 업데이트
+                    if (nextScene.illustKey) {
+                        markIllustAsCollected(nextScene.illustKey);
+                    }
+                    showEndingScreen(nextScene.ending.title, nextScene.ending.text, nextScene.background);
+                } else {
+                    displayScene(nextScene);
+                }
+            } else {
+                console.error("장면을 찾을 수 없습니다:", nextSceneName);
+                // 오류 처리: 기본 엔딩 또는 재시작 화면으로 이동
+                showEndingScreen("게임 오류", "장면을 찾을 수 없습니다. 게임을 다시 시작합니다.", IMAGE_URLS.FAILURE_ENDING);
+            }
+        }
+
+        // 엔딩 화면 표시 함수
+        function showEndingScreen(title, text, backgroundUrl) {
+            gameScreen.style.display = 'none';
+            endingScreen.style.display = 'flex';
+            endingTitle.textContent = title;
+            endingText.textContent = text;
+            endingScreen.style.backgroundImage = `url(${backgroundUrl})`;
+            endingScreen.style.backgroundSize = 'cover';
+            endingScreen.style.backgroundPosition = 'center';
+            backgroundMusic.pause(); // 엔딩 시 배경 음악 정지
+        }
+
+        // 갤러리 관련 함수
+        function loadCollectedIllusts() {
+            const savedData = localStorage.getItem(COLLECTED_ILLUSTS_KEY);
+            if (savedData) {
+                gameState.collectedIllusts = JSON.parse(savedData);
+            } else {
+                // 초기화: 모든 일러스트를 미수집 상태로 설정
+                for (const key in GALLERY_ILLUST_MAP) {
+                    gameState.collectedIllusts[key] = false;
+                }
+                saveCollectedIllusts(); // 초기 상태 저장
+            }
+        }
+
+        function saveCollectedIllusts() {
+            localStorage.setItem(COLLECTED_ILLUSTS_KEY, JSON.stringify(gameState.collectedIllusts));
+        }
+
+        function markIllustAsCollected(key) {
+            if (gameState.collectedIllusts[key] !== undefined) {
+                gameState.collectedIllusts[key] = true;
+                saveCollectedIllusts();
+            }
+        }
+
+        function showGalleryScreen() {
+            titleScreen.style.display = 'none';
+            gameScreen.style.display = 'none';
+            endingScreen.style.display = 'none';
+            galleryScreen.style.display = 'flex';
+            renderGallery();
+        }
+
+        function hideGalleryScreen() {
+            galleryScreen.style.display = 'none';
+            titleScreen.style.display = 'flex'; // 타이틀 화면으로 돌아가기
+        }
+
+        function renderGallery() {
+            galleryGrid.innerHTML = ''; // 기존 갤러리 내용 초기화
+            let collectedCount = 0;
+            const totalIllusts = Object.keys(GALLERY_ILLUST_MAP).length;
+
+            for (const key in GALLERY_ILLUST_MAP) {
+                const itemDiv = document.createElement('div');
+                itemDiv.classList.add('gallery-item');
+
+                const itemName = document.createElement('div');
+                itemName.classList.add('item-name');
+                
+                if (gameState.collectedIllusts[key]) {
+                    collectedCount++;
+                    const img = document.createElement('img');
+                    img.src = IMAGE_URLS[key];
+                    img.alt = GALLERY_ILLUST_MAP[key];
+                    itemDiv.appendChild(img);
+                    itemName.textContent = GALLERY_ILLUST_MAP[key]; // Set name only if collected
+                    itemDiv.appendChild(itemName);
+
+                    // Add click listener to show large image
+                    itemDiv.onclick = () => showImageOverlay(IMAGE_URLS[key], GALLERY_ILLUST_MAP[key]);
+                } else {
+                    itemDiv.classList.add('uncollected');
+                    itemName.textContent = ""; // Make the name completely disappear for uncollected items
+                    itemDiv.appendChild(itemName); 
+                    // No click listener for uncollected items, or show a "locked" message
+                }
+                galleryGrid.appendChild(itemDiv);
+            }
+
+            // Update progress bar
+            const percentage = totalIllusts > 0 ? Math.round((collectedCount / totalIllusts) * 100) : 0;
+            progressBarFill.style.width = percentage + '%';
+            progressPercentage.textContent = percentage + '%';
+        }
+
+        // New functions for image overlay
+        function showImageOverlay(imageUrl, title) {
+            overlayImage.src = imageUrl;
+            overlayImage.alt = title;
+            galleryImageOverlay.classList.add('active');
+        }
+
+        function hideImageOverlay() {
+            galleryImageOverlay.classList.remove('active');
+            overlayImage.src = '';
+            overlayImage.alt = '';
+        }
+
+        // 개발자 도구: S 키를 눌러 장면 건너뛰기 (기능 제거)
+        /*
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 's' || e.key === 'S') {
+                e.preventDefault(); // 기본 동작 방지 (예: 검색창 활성화)
+
+                const currentScene = scenes[gameState.currentScene];
+
+                // 타이핑 중이면 타이핑을 즉시 완료
+                if (gameState.isTyping) {
+                    const targetElement = currentScene.fullscreen ? illustDialogueDiv.querySelector('.dialogue-text') : dialogueText;
+                    if (targetElement) {
+                        targetElement.textContent = currentScene.text[gameState.currentTextIndex];
+                        gameState.isTyping = false;
+                    }
+                    return;
+                }
+
+                // 선택지가 표시된 상태면 건너뛰지 않음 (사용자가 직접 선택해야 함)
+                if (choicesContainer.style.display === 'block' || illustChoicesDiv.style.display === 'flex') {
+                    return;
+                }
+
+                // 다음 텍스트가 있다면 다음 텍스트로 이동
+                if (gameState.currentTextIndex < currentScene.text.length - 1) {
+                    gameState.currentTextIndex++;
+                    const targetElement = currentScene.fullscreen ? illustDialogueDiv.querySelector('.dialogue-text') : dialogueText;
+                    if (targetElement) {
+                        typeWriter(currentScene.text[gameState.currentTextIndex], targetElement);
+                    }
+                } else {
+                    // 다음 텍스트가 없고, 선택지도 없다면 다음 장면으로 이동 (첫 번째 선택지 next로)
+                    if (currentScene.choices && currentScene.choices.length > 0 && currentScene.choices[0].next) {
+                        // 현재 씬의 클릭 이벤트 핸들러 제거
+                        dialogueBox.onclick = null;
+                        fullscreenIllust.onclick = null;
+                        moveToNextScene(currentScene.choices[0].next);
+                    } else if (currentScene.ending) {
+                        // 엔딩 씬이라면 엔딩 화면 표시 (이미 처리되지만 혹시 모를 경우)
+                        showEndingScreen(currentScene.ending.title, currentScene.ending.text, currentScene.background);
+                    } else {
+                        console.warn("스킵할 다음 장면이 없거나, 선택지가 정의되지 않았습니다.");
+                    }
+                }
+            }
+        });
+        */
+
+
+        // 초기 로드 시 타이틀 화면 표시
+        window.onload = () => {
+            loadCollectedIllusts(); // 수집 정보 로드
+            titleScreen.style.display = 'flex';
+            gameScreen.style.display = 'none';
+            endingScreen.style.display = 'none';
+            galleryScreen.style.display = 'none'; // 갤러리 화면 초기 숨김
+            updateStats(); // 초기 스탯 표시
+
+            // 타이틀 화면 배경 및 로고 설정
+            titleScreen.style.backgroundImage = `url(${IMAGE_URLS.OPENING_ILLUST})`;
+            gameLogo.src = IMAGE_URLS.GAME_LOGO;
+
+            // 타이틀 화면 클릭 시 게임 시작
+            titleScreen.addEventListener('click', startGame);
+            // 갤러리 버튼 클릭 이벤트 리스너 추가
+            showGalleryButton.addEventListener('click', showGalleryScreen);
+        };
+
+    </script>
+</body>
+</html>
